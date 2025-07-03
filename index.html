@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitBack Pro - O teu assistente de treino pessoal</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiMyNTYzZWIiLz4KPHN2ZyB4PSI0OCIgeT0iNDgiIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+CjxwYXRoIGQ9Im0xMiAzLTEuOTEyIDUuNjEzYTIgMiAwIDAgMS0xLjc5OCAxLjEyN0w0IDEwbDQuMjM1IDQuMTI4YTIgMiAwIDAgMS42MjYgMS45NzlMOSAyMWwtLjM1NC0xLjUyNmEyIDIgMCAwIDEuNjI2LTIuNDc5TDEzIDEybC00LjcyOSAzLjM4NGEyIDIgMCAwIDEtMi44NTgtMS4wNjVMMyA5bDMuNjQ3LTEuNDQ1YTIgMiAwIDAgMSAyLjQ5OS42M0wxMiAzeiIvPgo8L3N2Zz4KPC9zdmc+">
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        #root {
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { User, Target, TrendingUp, Calendar, Play, CheckCircle, RotateCcw, Dumbbell, Activity, Info, X } = lucideReact;
+
+        const FitBackApp = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [currentWorkout, setCurrentWorkout] = useState(null);
+            const [workoutPhase, setWorkoutPhase] = useState('warmup');
+            const [completedSets, setCompletedSets] = useState([]);
+            const [completedWarmup, setCompletedWarmup] = useState([]);
+            const [completedCooldown, setCompletedCooldown] = useState([]);
+            const [showExerciseModal, setShowExerciseModal] = useState(null);
+            const [workoutHistory, setWorkoutHistory] = useState([
+                { date: '2025-06-28', type: 'Força Superior', exercises: 8, duration: 52 },
+                { date: '2025-06-26', type: 'Potência Inferior', exercises: 6, duration: 45 },
+                { date: '2025-06-24', type: 'Prep. Padel', exercises: 5, duration: 35 }
+            ]);
+            const [progressData, setProgressData] = useState({
+                deadlift: [{ date: '2025-06-20', weight: 80 }, { date: '2025-06-27', weight: 85 }],
+                squat: [{ date: '2025-06-20', weight: 70 }, { date: '2025-06-27', weight: 75 }],
+                benchPress: [{ date: '2025-06-20', weight: 65 }, { date: '2025-06-27', weight: 67.5 }]
+            });
+
+            const exerciseInstructions = {
+                // Aquecimento
+                "Mobilização articular": {
+                    setup: "Em pé, com espaço suficiente para moveres os braços e pernas livremente.",
+                    execution: "Roda ombros, ancas, tornozelos e pescoço lentamente. 10 rotações cada direcção.",
+                    breathing: "Respira profunda e calmamente durante todo o movimento.",
+                    tips: "Movimento lento e controlado. Sente cada articulação a aquecer."
+                },
+                "Activação cardiovascular": {
+                    setup: "Espaço livre para caminhada ou movimentos no local.",
+                    execution: "5min de caminhada rápida, marcha no local ou bicicleta leve.",
+                    breathing: "Respiração deve acelerar gradualmente, mas ainda confortável.",
+                    tips: "Objetivo é aumentar temperatura corporal, não te cansar."
+                },
+                "Activação glúteos": {
+                    setup: "De pé, mãos nas ancas para equilíbrio.",
+                    execution: "Ponte de glúteos de pé: contrai glúteos forte, mantém 3 segundos.",
+                    breathing: "Expira ao contrair, inspira ao relaxar.",
+                    tips: "Essencial para quem trabalha sentado. Sente os glúteos a 'acordar'."
+                },
+                "Mobilidade torácica": {
+                    setup: "De pé, braços estendidos à frente.",
+                    execution: "Abre os braços para os lados, roda a coluna torácica. 10 cada lado.",
+                    breathing: "Inspira ao abrir, expira ao rodar.",
+                    tips: "Importante para contrarriar postura de secretária. Movimento amplo."
+                },
+                "Preparação do core": {
+                    setup: "De pé, mãos na barriga.",
+                    execution: "Respira fundo, expira contraindo abdómen. Mantém 5 segundos.",
+                    breathing: "Inspiração profunda, expiração longa e controlada.",
+                    tips: "Prepara o core para os exercícios principais. Foco na respiração."
+                },
+                "Aquecimento dinâmico": {
+                    setup: "Espaço para alguns passos à frente e atrás.",
+                    execution: "Leg swings, arm circles, bodyweight squats. 10-15 reps cada.",
+                    breathing: "Respiração natural, ligeiramente acelerada.",
+                    tips: "Movimento dinâmico prepare músculos para esforço. Amplitude aumenta gradualmente."
+                },
+                
+                // Alongamentos
+                "Alongamento isquiotibiais": {
+                    setup: "Sentado no chão, uma perna estendida, outra dobrada.",
+                    execution: "Inclina-te para a frente sobre a perna estendida, mantém 30 segundos.",
+                    breathing: "Respira profundamente, relaxa mais a cada expiração.",
+                    tips: "Não forces. Sente alongamento suave na parte de trás da perna."
+                },
+                "Alongamento hip flexors": {
+                    setup: "Posição de afundo baixo, joelho de trás no chão.",
+                    execution: "Empurra ancas para a frente, sente alongamento na frente da anca.",
+                    breathing: "Respiração profunda e relaxada.",
+                    tips: "Crucial para quem trabalha sentado. Mantém 30 segundos cada lado."
+                },
+                "Alongamento ombros e peito": {
+                    setup: "De pé junto a uma parede ou porta.",
+                    execution: "Braço estendido contra parede, roda corpo para o lado oposto.",
+                    breathing: "Respira calmamente enquanto sentes o alongamento.",
+                    tips: "Alonga músculos encurtados pela postura de secretária."
+                },
+                "Alongamento coluna": {
+                    setup: "Sentado no chão, pernas cruzadas.",
+                    execution: "Roda o tronco para um lado, mão atrás para apoio. 30 segundos cada lado.",
+                    breathing: "Inspira ao alongar, expira ao rodar mais.",
+                    tips: "Movimento suave. Importante para saúde da coluna."
+                },
+                "Alongamento gémeos": {
+                    setup: "De pé, mãos contra parede, uma perna atrás.",
+                    execution: "Mantém calcanhar no chão, inclina-te para a frente.",
+                    breathing: "Respiração relaxada.",
+                    tips: "Essencial após treino de pernas. Sente alongamento na parte de trás da perna."
+                },
+                "Relaxamento final": {
+                    setup: "Deitado de costas, braços ao lado do corpo.",
+                    execution: "Respira profundamente, relaxa cada músculo progressivamente.",
+                    breathing: "Respiração profunda e lenta, cada vez mais relaxada.",
+                    tips: "2-3 minutos de relaxamento total. Deixa o corpo recuperar."
+                },
+                
+                // Exercícios principais
+                "Peso morto": {
+                    setup: "Coloca-te em pé com os pés à largura das ancas, barra próxima das canelas.",
+                    execution: "Mantém o peito erguido, dobra pelas ancas e joelhos. Agarra a barra e levanta mantendo as costas direitas.",
+                    breathing: "Inspira antes de levantar, expira no topo do movimento.",
+                    tips: "Mantém a barra próxima do corpo. Activa o core durante todo o movimento."
+                },
+                "Dominadas/Lat Pulldown": {
+                    setup: "Agarra a barra com pegada pronada, mãos ligeiramente mais largas que os ombros.",
+                    execution: "Puxa o corpo para cima até o queixo passar a barra, ou puxa a barra até ao peito se for no lat pulldown.",
+                    breathing: "Expira ao subir, inspira ao descer controladamente.",
+                    tips: "Evita balançar. Foca em puxar com as costas, não só com os braços."
+                },
+                "Press militar": {
+                    setup: "Pés à largura dos ombros, barra ao nível do peito, core activado.",
+                    execution: "Empurra a barra directamente para cima, mantendo a cabeça neutra.",
+                    breathing: "Inspira em baixo, expira ao empurrar para cima.",
+                    tips: "Não arqueies as costas. Mantém os glúteos contraídos."
+                },
+                "Remada curvada": {
+                    setup: "Inclina-te para a frente com joelhos ligeiramente dobrados, agarra a barra.",
+                    execution: "Puxa a barra em direcção ao abdómen, mantendo os cotovelos próximos do corpo.",
+                    breathing: "Expira ao puxar, inspira ao baixar.",
+                    tips: "Mantém o peito erguido. Aperta as omoplatas no topo."
+                },
+                "Turkish Get-up": {
+                    setup: "Deita-te com kettlebell numa mão, braço estendido, joelho do mesmo lado dobrado.",
+                    execution: "Levanta-te para a posição de pé mantendo sempre o braço estendido por cima.",
+                    breathing: "Respira calmamente, sem pressa.",
+                    tips: "Movimento lento e controlado. Olha sempre para a kettlebell."
+                },
+                "Face Pulls": {
+                    setup: "Usa cabo na altura do peito, agarra com as duas mãos.",
+                    execution: "Puxa em direcção ao rosto, separando as mãos e apertando as omoplatas.",
+                    breathing: "Expira ao puxar, inspira ao voltar.",
+                    tips: "Foca na parte de trás dos ombros. Movimento lento e controlado."
+                },
+                "Prancha para T": {
+                    setup: "Inicia em posição de prancha, corpo recto.",
+                    execution: "Roda para um lado levantando um braço, formando um T. Volta e repete para o outro lado.",
+                    breathing: "Mantém respiração constante.",
+                    tips: "Mantém o core sempre activado. Movimento fluido."
+                },
+                "Agachamento traseiro": {
+                    setup: "Barra nos trapézios, pés à largura dos ombros, dedos ligeiramente para fora.",
+                    execution: "Desce como se fosses sentar-te, joelhos alinhados com os dedos dos pés.",
+                    breathing: "Inspira ao descer, expira ao subir.",
+                    tips: "Desce até as ancas ficarem abaixo dos joelhos. Mantém o peito erguido."
+                },
+                "Agachamento búlgaro": {
+                    setup: "Uma perna atrás apoiada num banco, outra perna à frente.",
+                    execution: "Desce em agachamento na perna da frente, sobe controladamente.",
+                    breathing: "Inspira ao descer, expira ao subir.",
+                    tips: "Maior parte do peso na perna da frente. Tronco direito."
+                },
+                "Peso morto romeno": {
+                    setup: "Pés à largura das ancas, joelhos ligeiramente dobrados.",
+                    execution: "Empurra as ancas para trás mantendo a barra próxima das pernas.",
+                    breathing: "Inspira ao descer, expira ao voltar.",
+                    tips: "Sente o alongamento nos isquiotibiais. Mantém as costas direitas."
+                },
+                "Afundos laterais": {
+                    setup: "Pés afastados, halteres nas mãos.",
+                    execution: "Move-te lateralmente, dobrando uma perna enquanto a outra fica estendida.",
+                    breathing: "Inspira ao descer, expira ao voltar.",
+                    tips: "Mantém o tronco direito. Movimento controlado para os lados."
+                },
+                "Step-ups na caixa": {
+                    setup: "Caixa à altura do joelho, halteres nas mãos.",
+                    execution: "Sobe para a caixa com uma perna, desce controladamente.",
+                    breathing: "Expira ao subir, inspira ao descer.",
+                    tips: "Não empurres com a perna de trás. Foca na perna que está na caixa."
+                },
+                "Elevações de gémeos": {
+                    setup: "Pés à largura dos ombros, halteres nas mãos.",
+                    execution: "Levanta-te nas pontas dos pés, pausa, desce lentamente.",
+                    breathing: "Expira ao subir, inspira ao descer.",
+                    tips: "Movimento completo. Pausa de 1 segundo no topo."
+                },
+                "Lançamentos rotacionais com bola medicinal": {
+                    setup: "Lateral à parede, bola medicinal nas mãos.",
+                    execution: "Roda o tronco e lança a bola contra a parede com força.",
+                    breathing: "Expira no lançamento.",
+                    tips: "Força vem do core. Movimento explosivo igual ao padel."
+                },
+                "Saltos laterais": {
+                    setup: "Pés juntos, mantém equilíbrio.",
+                    execution: "Salta lateralmente para uma perna, equilibra-te, salta para a outra.",
+                    breathing: "Respira naturalmente.",
+                    tips: "Aterra suavemente. Importante para os movimentos do padel."
+                },
+                "Peso morto uma perna": {
+                    setup: "Equilibra-te numa perna, halteres nas mãos.",
+                    execution: "Inclina o tronco para a frente estendendo a perna livre para trás.",
+                    breathing: "Mantém respiração controlada.",
+                    tips: "Foca no equilíbrio. Movimento lento e controlado."
+                },
+                "Rotação externa do ombro": {
+                    setup: "Cotovelo colado ao corpo, antebraço a 90 graus, banda elástica na mão.",
+                    execution: "Roda o antebraço para fora contra a resistência da banda.",
+                    breathing: "Respira naturalmente.",
+                    tips: "Movimento pequeno mas importante. Previne lesões no padel."
+                },
+                "Bear Crawl": {
+                    setup: "Quatro apoios, joelhos ligeiramente levantados do chão.",
+                    execution: "Caminha para a frente mantendo os joelhos perto do chão.",
+                    breathing: "Respira de forma controlada.",
+                    tips: "Core sempre activado. Movimento coordenado."
+                }
+            };
+
+            const workoutTemplates = {
+                upperStrength: {
+                    name: "Força Superior",
+                    description: "Recuperação de secretária + força CrossFit",
+                    warmup: [
+                        { name: "Mobilização articular", duration: "2min", notes: "Ombros, pescoço, punhos - foco na parte superior" },
+                        { name: "Activação cardiovascular", duration: "5min", notes: "Aumento gradual da frequência cardíaca" },
+                        { name: "Activação glúteos", duration: "1min", notes: "Desperta músculos dormentes da secretária" },
+                        { name: "Mobilidade torácica", duration: "2min", notes: "Essencial para postura de secretária" },
+                        { name: "Aquecimento dinâmico", duration: "3min", notes: "Arm circles, shoulder rolls, light movements" }
+                    ],
+                    exercises: [
+                        { name: "Peso morto", sets: 4, reps: "6-8", weight: "85kg", rest: "3min", notes: "Foco na cadeia posterior" },
+                        { name: "Dominadas/Lat Pulldown", sets: 3, reps: "8-10", weight: "PC/-10kg", rest: "2min", notes: "Contra postura de secretária" },
+                        { name: "Press militar", sets: 4, reps: "6-8", weight: "45kg", rest: "2.5min", notes: "Movimento de potência para padel" },
+                        { name: "Remada curvada", sets: 3, reps: "10-12", weight: "65kg", rest: "2min", notes: "Força das costas superiores" },
+                        { name: "Turkish Get-up", sets: 3, reps: "5 cada lado", weight: "16kg KB", rest: "90s", notes: "Estabilidade do core" },
+                        { name: "Face Pulls", sets: 3, reps: "15-20", weight: "Leve", rest: "60s", notes: "Saúde dos ombros" },
+                        { name: "Prancha para T", sets: 3, reps: "10 cada lado", weight: "PC", rest: "60s", notes: "Core anti-rotação" }
+                    ],
+                    cooldown: [
+                        { name: "Alongamento ombros e peito", duration: "2min", notes: "Alonga músculos trabalhados e contraturados da secretária" },
+                        { name: "Alongamento coluna", duration: "2min", notes: "Mobilidade da coluna torácica e lombar" },
+                        { name: "Alongamento hip flexors", duration: "2min", notes: "Essencial para quem trabalha sentado" },
+                        { name: "Relaxamento final", duration: "3min", notes: "Respiração profunda e relaxamento muscular" }
+                    ]
+                },
+                lowerPower: {
+                    name: "Potência Inferior",
+                    description: "Força das pernas + explosividade padel",
+                    warmup: [
+                        { name: "Mobilização articular", duration: "2min", notes: "Ancas, joelhos, tornozelos - foco na parte inferior" },
+                        { name: "Activação cardiovascular", duration: "5min", notes: "Caminhada ou bicicleta leve" },
+                        { name: "Activação glúteos", duration: "2min", notes: "Crucial para performance e prevenção lesões" },
+                        { name: "Preparação do core", duration: "1min", notes: "Estabilização para exercícios de pernas" },
+                        { name: "Aquecimento dinâmico", duration: "3min", notes: "Leg swings, bodyweight squats, lunges" }
+                    ],
+                    exercises: [
+                        { name: "Agachamento traseiro", sets: 4, reps: "6-8", weight: "75kg", rest: "3min", notes: "Profundidade completa, controlado" },
+                        { name: "Agachamento búlgaro", sets: 3, reps: "8 cada perna", weight: "20kg HTs", rest: "90s", notes: "Força unilateral" },
+                        { name: "Peso morto romeno", sets: 3, reps: "10-12", weight: "60kg", rest: "2min", notes: "Foco isquiotibiais/glúteos" },
+                        { name: "Afundos laterais", sets: 3, reps: "10 cada lado", weight: "15kg HTs", rest: "60s", notes: "Padrão movimento padel" },
+                        { name: "Step-ups na caixa", sets: 3, reps: "8 cada perna", weight: "15kg HTs", rest: "90s", notes: "Potência explosiva" },
+                        { name: "Elevações de gémeus", sets: 3, reps: "15-20", weight: "30kg HTs", rest: "60s", notes: "Estabilidade tornozelo" }
+                    ],
+                    cooldown: [
+                        { name: "Alongamento isquiotibiais", duration: "3min", notes: "Alonga músculos mais trabalhados" },
+                        { name: "Alongamento gémeos", duration: "2min", notes: "Importante após exercícios de pernas" },
+                        { name: "Alongamento hip flexors", duration: "2min", notes: "Equilibra trabalho de glúteos" },
+                        { name: "Relaxamento final", duration: "3min", notes: "Recuperação e relaxamento" }
+                    ]
+                },
+                padelPrep: {
+                    name: "Performance Padel",
+                    description: "Condicionamento específico do desporto",
+                    warmup: [
+                        { name: "Mobilização articular", duration: "3min", notes: "Movimento completo - padel usa todo o corpo" },
+                        { name: "Activação cardiovascular", duration: "4min", notes: "Simula intensidade do padel" },
+                        { name: "Mobilidade torácica", duration: "2min", notes: "Para rotações e movimentos overhead" },
+                        { name: "Preparação do core", duration: "1min", notes: "Base para movimentos rotacionais" },
+                        { name: "Aquecimento dinâmico", duration: "3min", notes: "Movimentos específicos do padel" }
+                    ],
+                    exercises: [
+                        { name: "Lançamentos rotacionais com bola medicinal", sets: 3, reps: "10 cada lado", weight: "6kg bola", rest: "90s", notes: "Geração potência padel" },
+                        { name: "Saltos laterais", sets: 3, reps: "8 cada lado", weight: "PC", rest: "60s", notes: "Movimento em campo" },
+                        { name: "Peso morto uma perna", sets: 3, reps: "8 cada perna", weight: "15kg HTs", rest: "90s", notes: "Equilíbrio e estabilidade" },
+                        { name: "Rotação externa do ombro", sets: 3, reps: "12-15", weight: "Banda leve", rest: "45s", notes: "Prevenção lesões" },
+                        { name: "Bear Crawl", sets: 3, reps: "20 passos", weight: "PC", rest: "60s", notes: "Estabilidade core" }
+                    ],
+                    cooldown: [
+                        { name: "Alongamento ombros e peito", duration: "3min", notes: "Importante após movimentos overhead" },
+                        { name: "Alongamento coluna", duration: "2min", notes: "Após movimentos rotacionais" },
+                        { name: "Alongamento isquiotibiais", duration: "2min", notes: "Após saltos e movimentos dinâmicos" },
+                        { name: "Relaxamento final", duration: "3min", notes: "Redução gradual da activação" }
+                    ]
+                }
+            };
+
+            const generateWorkout = () => {
+                const workoutTypes = Object.keys(workoutTemplates);
+                const lastWorkout = workoutHistory[0]?.type;
+                
+                let nextWorkout;
+                if (lastWorkout === 'Força Superior') nextWorkout = 'lowerPower';
+                else if (lastWorkout === 'Potência Inferior') nextWorkout = 'padelPrep';
+                else nextWorkout = 'upperStrength';
+                
+                setCurrentWorkout(workoutTemplates[nextWorkout]);
+                setWorkoutPhase('warmup');
+                setCompletedSets([]);
+                setCompletedWarmup([]);
+                setCompletedCooldown([]);
+                setActiveTab('workout');
+            };
+
+            const completeWarmupExercise = (exerciseIndex) => {
+                if (!completedWarmup.includes(exerciseIndex)) {
+                    setCompletedWarmup([...completedWarmup, exerciseIndex]);
+                }
+            };
+
+            const completeCooldownExercise = (exerciseIndex) => {
+                if (!completedCooldown.includes(exerciseIndex)) {
+                    setCompletedCooldown([...completedCooldown, exerciseIndex]);
+                }
+            };
+
+            const startMainWorkout = () => {
+                setWorkoutPhase('main');
+            };
+
+            const startCooldown = () => {
+                setWorkoutPhase('cooldown');
+            };
+
+            const completeSet = (exerciseIndex, setIndex) => {
+                const setId = `${exerciseIndex}-${setIndex}`;
+                if (!completedSets.includes(setId)) {
+                    setCompletedSets([...completedSets, setId]);
+                }
+            };
+
+            const finishWorkout = () => {
+                if (currentWorkout) {
+                    const newEntry = {
+                        date: new Date().toISOString().split('T')[0],
+                        type: currentWorkout.name,
+                        exercises: currentWorkout.exercises.length,
+                        duration: Math.floor(Math.random() * 20) + 35
+                    };
+                    setWorkoutHistory([newEntry, ...workoutHistory]);
+                    setCurrentWorkout(null);
+                    setWorkoutPhase('warmup');
+                    setCompletedSets([]);
+                    setCompletedWarmup([]);
+                    setCompletedCooldown([]);
+                    setActiveTab('dashboard');
+                }
+            };
+
+            const ExerciseModal = ({ exercise, onClose }) => (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto">
+                        <div className="p-4 border-b flex justify-between items-center">
+                            <h3 className="text-lg font-bold">{exercise}</h3>
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-4 space-y-4">
+                            {exerciseInstructions[exercise] ? (
+                                <>
+                                    <div>
+                                        <h4 className="font-semibold text-blue-600 mb-2">🏋️ Preparação</h4>
+                                        <p className="text-sm text-gray-700">{exerciseInstructions[exercise].setup}</p>
+                                    </div>
+                                    
+                                    <div>
+                                        <h4 className="font-semibold text-green-600 mb-2">⚡ Execução</h4>
+                                        <p className="text-sm text-gray-700">{exerciseInstructions[exercise].execution}</p>
+                                    </div>
+                                    
+                                    <div>
+                                        <h4 className="font-semibold text-purple-600 mb-2">🫁 Respiração</h4>
+                                        <p className="text-sm text-gray-700">{exerciseInstructions[exercise].breathing}</p>
+                                    </div>
+                                    
+                                    <div>
+                                        <h4 className="font-semibold text-orange-600 mb-2">💡 Dicas</h4>
+                                        <p className="text-sm text-gray-700">{exerciseInstructions[exercise].tips}</p>
+                                    </div>
+                                </>
+                            ) : (
+                                <p className="text-gray-600">Instruções para este exercício estarão disponíveis em breve.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const TabButton = ({ id, icon: Icon, label, active, onClick }) => (
+                <button
+                    onClick={() => onClick(id)}
+                    className={`flex flex-col items-center px-4 py-2 rounded-lg transition-colors ${
+                        active ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                >
+                    <Icon size={20} />
+                    <span className="text-xs mt-1">{label}</span>
+                </button>
+            );
+
+            return (
+                <div className="max-w-md mx-auto bg-gray-50 min-h-screen">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+                        <h1 className="text-2xl font-bold">FitBack Pro</h1>
+                        <p className="text-blue-100">O teu assistente de treino pessoal</p>
+                    </div>
+
+                    {/* Navigation */}
+                    <div className="flex justify-around bg-white p-3 shadow-sm">
+                        <TabButton id="dashboard" icon={Target} label="Painel" active={activeTab === 'dashboard'} onClick={setActiveTab} />
+                        <TabButton id="workout" icon={Dumbbell} label="Treino" active={activeTab === 'workout'} onClick={setActiveTab} />
+                        <TabButton id="progress" icon={TrendingUp} label="Progresso" active={activeTab === 'progress'} onClick={setActiveTab} />
+                        <TabButton id="profile" icon={User} label="Perfil" active={activeTab === 'profile'} onClick={setActiveTab} />
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4">
+                        {activeTab === 'dashboard' && (
+                            <div className="space-y-6">
+                                {/* Quick Stats */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                                        <div className="text-2xl font-bold text-blue-600">{workoutHistory.length}</div>
+                                        <div className="text-sm text-gray-600">Treinos Concluídos</div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                                        <div className="text-2xl font-bold text-green-600">7</div>
+                                        <div className="text-sm text-gray-600">Dias Seguidos</div>
+                                    </div>
+                                </div>
+
+                                {/* Generate Workout */}
+                                <div className="bg-white p-6 rounded-lg shadow-sm">
+                                    <h3 className="font-semibold mb-3">Pronto para o próximo treino?</h3>
+                                    <p className="text-gray-600 text-sm mb-4">
+                                        Com base no teu background de CrossFit e horário de padel, aqui está o teu treino personalizado.
+                                    </p>
+                                    <button
+                                        onClick={generateWorkout}
+                                        className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2"
+                                    >
+                                        <Play size={18} />
+                                        Gerar Treino de Hoje
+                                    </button>
+                                </div>
+
+                                {/* Recent Workouts */}
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <h3 className="font-semibold mb-3">Treinos Recentes</h3>
+                                    <div className="space-y-3">
+                                        {workoutHistory.slice(0, 3).map((workout, index) => (
+                                            <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                                <div>
+                                                    <div className="font-medium">{workout.type}</div>
+                                                    <div className="text-sm text-gray-600">{workout.date}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-sm font-medium">{workout.duration}min</div>
+                                                    <div className="text-xs text-gray-500">{workout.exercises} exercícios</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Tips for 45+ Athletes */}
+                                <div className="bg-gradient-to-r from-orange-100 to-orange-50 p-4 rounded-lg border border-orange-200">
+                                    <h3 className="font-semibold text-orange-800 mb-2">💡 Dica de Hoje</h3>
+                                    <p className="text-orange-700 text-sm">
+                                        Aos 45, a recuperação é fundamental! Assegura-te de ter um sono de qualidade e não saltes as sessões de mobilidade - são especialmente importantes para a performance no padel.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'workout' && (
+                            <div>
+                                {currentWorkout ? (
+                                    <div className="space-y-4">
+                                        {/* Workout Header */}
+                                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                                            <h2 className="text-xl font-bold">{currentWorkout.name}</h2>
+                                            <p className="text-gray-600">{currentWorkout.description}</p>
+                                            
+                                            {/* Phase Indicator */}
+                                            <div className="flex mt-3 gap-2">
+                                                <div className={`px-3 py-1 rounded-full text-xs ${workoutPhase === 'warmup' ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                                                    Aquecimento
+                                                </div>
+                                                <div className={`px-3 py-1 rounded-full text-xs ${workoutPhase === 'main' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                                                    Treino Principal
+                                                </div>
+                                                <div className={`px-3 py-1 rounded-full text-xs ${workoutPhase === 'cooldown' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                                                    Alongamentos
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Warmup Phase */}
+                                        {workoutPhase === 'warmup' && (
+                                            <div className="space-y-4">
+                                                <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                                    <h3 className="font-semibold text-orange-800 mb-2">🔥 Aquecimento (10-15min)</h3>
+                                                    <p className="text-orange-700 text-sm">
+                                                        Especialmente importante aos 45 anos. Prepara articulações e músculos para o esforço.
+                                                    </p>
+                                                </div>
+
+                                                {currentWorkout.warmup.map((exercise, exerciseIndex) => (
+                                                    <div key={exerciseIndex} className="bg-white p-4 rounded-lg shadow-sm">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <h3 className="font-semibold">{exercise.name}</h3>
+                                                            <button
+                                                                onClick={() => setShowExerciseModal(exercise.name)}
+                                                                className="bg-orange-100 text-orange-600 p-1 rounded-full hover:bg-orange-200 transition-colors"
+                                                            >
+                                                                <Info size={16} />
+                                                            </button>
+                                                        </div>
+                                                        <div className="text-sm text-gray-600 mb-3">
+                                                            Duração: {exercise.duration}
+                                                        </div>
+                                                        <div className="text-xs text-orange-600 mb-3">{exercise.notes}</div>
+                                                        
+                                                        <button
+                                                            onClick={() => completeWarmupExercise(exerciseIndex)}
+                                                            className={`w-full py-2 rounded text-sm transition-colors ${
+                                                                completedWarmup.includes(exerciseIndex)
+                                                                    ? 'bg-green-500 text-white' 
+                                                                    : 'bg-orange-200 text-orange-700 hover:bg-orange-300'
+                                                            }`}
+                                                        >
+                                                            {completedWarmup.includes(exerciseIndex) ? '✓ Concluído' : 'Marcar como Concluído'}
+                                                        </button>
+                                                    </div>
+                                                ))}
+
+                                                <button
+                                                    onClick={startMainWorkout}
+                                                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium"
+                                                    disabled={completedWarmup.length < currentWorkout.warmup.length}
+                                                >
+                                                    {completedWarmup.length < currentWorkout.warmup.length 
+                                                        ? `Conclui Aquecimento (${completedWarmup.length}/${currentWorkout.warmup.length})`
+                                                        : 'Iniciar Treino Principal 💪'
+                                                    }
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Main Workout Phase */}
+                                        {workoutPhase === 'main' && (
+                                            <div className="space-y-4">
+                                                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                                    <h3 className="font-semibold text-blue-800 mb-2">💪 Treino Principal</h3>
+                                                    <p className="text-blue-700 text-sm">
+                                                        Foca na técnica. Qualidade sobre quantidade. Descansa o tempo indicado entre séries.
+                                                    </p>
+                                                </div>
+
+                                                {currentWorkout.exercises.map((exercise, exerciseIndex) => (
+                                                    <div key={exerciseIndex} className="bg-white p-4 rounded-lg shadow-sm">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <h3 className="font-semibold">{exercise.name}</h3>
+                                                            <button
+                                                                onClick={() => setShowExerciseModal(exercise.name)}
+                                                                className="bg-blue-100 text-blue-600 p-1 rounded-full hover:bg-blue-200 transition-colors"
+                                                            >
+                                                                <Info size={16} />
+                                                            </button>
+                                                        </div>
+                                                        <div className="text-sm text-gray-600 mb-3">
+                                                            {exercise.sets} séries × {exercise.reps} reps @ {exercise.weight}
+                                                        </div>
+                                                        <div className="text-xs text-blue-600 mb-3">{exercise.notes}</div>
+                                                        
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            {Array.from({ length: exercise.sets }, (_, setIndex) => {
+                                                                const setId = `${exerciseIndex}-${setIndex}`;
+                                                                const isCompleted = completedSets.includes(setId);
+                                                                return (
+                                                                    <button
+                                                                        key={setIndex}
+                                                                        onClick={() => completeSet(exerciseIndex, setIndex)}
+                                                                        className={`px-3 py-1 rounded text-sm transition-colors ${
+                                                                            isCompleted 
+                                                                                ? 'bg-green-500 text-white' 
+                                                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                                        }`}
+                                                                    >
+                                                                        {isCompleted ? React.createElement(CheckCircle, {size: 16, className: "inline"}) : `Série ${setIndex + 1}`}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 mt-2">Descanso: {exercise.rest}</div>
+                                                    </div>
+                                                ))}
+
+                                                <button
+                                                    onClick={startCooldown}
+                                                    className="w-full bg-green-600 text-white py-3 rounded-lg font-medium"
+                                                    disabled={completedSets.length === 0}
+                                                >
+                                                    Iniciar Alongamentos 🧘‍♂️
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Cooldown Phase */}
+                                        {workoutPhase === 'cooldown' && (
+                                            <div className="space-y-4">
+                                                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                                    <h3 className="font-semibold text-green-800 mb-2">🧘‍♂️ Alongamentos (10min)</h3>
+                                                    <p className="text-green-700 text-sm">
+                                                        Crucial para recuperação e flexibilidade. Mantém cada alongamento 30 segundos mínimo.
+                                                    </p>
+                                                </div>
+
+                                                {currentWorkout.cooldown.map((exercise, exerciseIndex) => (
+                                                    <div key={exerciseIndex} className="bg-white p-4 rounded-lg shadow-sm">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <h3 className="font-semibold">{exercise.name}</h3>
+                                                            <button
+                                                                onClick={() => setShowExerciseModal(exercise.name)}
+                                                                className="bg-green-100 text-green-600 p-1 rounded-full hover:bg-green-200 transition-colors"
+                                                            >
+                                                                <Info size={16} />
+                                                            </button>
+                                                        </div>
+                                                        <div className="text-sm text-gray-600 mb-3">
+                                                            Duração: {exercise.duration}
+                                                        </div>
+                                                        <div className="text-xs text-green-600 mb-3">{exercise.notes}</div>
+                                                        
+                                                        <button
+                                                            onClick={() => completeCooldownExercise(exerciseIndex)}
+                                                            className={`w-full py-2 rounded text-sm transition-colors ${
+                                                                completedCooldown.includes(exerciseIndex)
+                                                                    ? 'bg-green-500 text-white' 
+                                                                    : 'bg-green-200 text-green-700 hover:bg-green-300'
+                                                            }`}
+                                                        >
+                                                            {completedCooldown.includes(exerciseIndex) ? '✓ Concluído' : 'Marcar como Concluído'}
+                                                        </button>
+                                                    </div>
+                                                ))}
+
+                                                <button
+                                                    onClick={finishWorkout}
+                                                    className="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 rounded-lg font-medium"
+                                                    disabled={completedCooldown.length < currentWorkout.cooldown.length}
+                                                >
+                                                    {completedCooldown.length < currentWorkout.cooldown.length 
+                                                        ? `Conclui Alongamentos (${completedCooldown.length}/${currentWorkout.cooldown.length})`
+                                                        : '🎉 Concluir Treino Completo!'
+                                                    }
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-12">
+                                        <Dumbbell size={48} className="mx-auto text-gray-400 mb-4" />
+                                        <h3 className="font-semibold text-gray-600 mb-2">Nenhum Treino Activo</h3>
+                                        <p className="text-gray-500 mb-4">Gera um treino no painel para começares!</p>
+                                        <button
+                                            onClick={() => setActiveTab('dashboard')}
+                                            className="bg-blue-600 text-white px-6 py-2 rounded-lg"
+                                        >
+                                            Ir para o Painel
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'progress' && (
+                            <div className="space-y-6">
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <h3 className="font-semibold mb-4">Progresso de Força</h3>
+                                    
+                                    {Object.entries(progressData).map(([exercise, data]) => (
+                                        <div key={exercise} className="mb-4">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="font-medium capitalize">
+                                                    {exercise === 'deadlift' ? 'Peso Morto' : 
+                                                     exercise === 'squat' ? 'Agachamento' : 
+                                                     exercise === 'benchPress' ? 'Supino' : exercise}
+                                                </span>
+                                                <span className="text-green-600 font-semibold">
+                                                    +{data[data.length - 1].weight - data[0].weight}kg
+                                                </span>
+                                            </div>
+                                            <div className="bg-gray-100 rounded-full h-2">
+                                                <div 
+                                                    className="bg-blue-600 h-2 rounded-full transition-all"
+                                                    style={{ width: `${Math.min(((data[data.length - 1].weight - data[0].weight) / data[0].weight) * 100 * 10, 100)}%` }}
+                                                ></div>
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">
+                                                {data[0].weight}kg → {data[data.length - 1].weight}kg
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <h3 className="font-semibold mb-3">Resumo Semanal</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="text-center">
+                                            <div className="text-2xl font-bold text-blue-600">3</div>
+                                            <div className="text-sm text-gray-600">Sessões de Força</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-2xl font-bold text-green-600">2</div>
+                                            <div className="text-sm text-gray-600">Sessões de Padel</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gradient-to-r from-blue-100 to-blue-50 p-4 rounded-lg border border-blue-200">
+                                    <h3 className="font-semibold text-blue-800 mb-2">🎯 Objectivo desta Semana</h3>
+                                    <p className="text-blue-700 text-sm">
+                                        Aumentar o peso morto em 2,5kg e completar todas as sessões de mobilidade. Estás a recuperar aquela força do CrossFit!
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'profile' && (
+                            <div className="space-y-6">
+                                <div className="bg-white p-6 rounded-lg shadow-sm">
+                                    <h3 className="font-semibold mb-4">O Teu Perfil</h3>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Idade</span>
+                                            <span className="font-medium">45 anos</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Experiência</span>
+                                            <span className="font-medium">8 anos CrossFit</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Desporto Actual</span>
+                                            <span className="font-medium">Jogador de Padel</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Estilo de Trabalho</span>
+                                            <span className="font-medium">Trabalho de Secretária</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Objectivo Principal</span>
+                                            <span className="font-medium">Fitness Geral</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Área de Foco</span>
+                                            <span className="font-medium">Força do Core</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <h3 className="font-semibold mb-3">Preferências de Treino</h3>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle size={16} className="text-green-500" />
+                                            <span className="text-sm">Prioridade no Treino de Força</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle size={16} className="text-green-500" />
+                                            <span className="text-sm">Condicionamento Específico de Padel</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle size={16} className="text-green-500" />
+                                            <span className="text-sm">Recuperação de Trabalhador de Secretária</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle size={16} className="text-green-500" />
+                                            <span className="text-sm">Programação Adequada à Idade</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                                    <h3 className="font-semibold text-yellow-800 mb-2">⚠️ Lembretes de Saúde</h3>
+                                    <ul className="text-yellow-700 text-sm space-y-1">
+                                        <li>• Aquecimentos prolongados para atletas de 45+</li>
+                                        <li>• Foco na saúde articular e mobilidade</li>
+                                        <li>• Ouve o teu corpo - a recuperação é crucial</li>
+                                        <li>• Mantém-te hidratado durante as sessões de padel</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Exercise Modal */}
+                    {showExerciseModal && (
+                        <ExerciseModal 
+                            exercise={showExerciseModal} 
+                            onClose={() => setShowExerciseModal(null)} 
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(React.createElement(FitBackApp), document.getElementById('root'));
+    </script>
+</body>
+</html>
