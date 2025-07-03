@@ -30,6 +30,16 @@
         const { User, Target, TrendingUp, Calendar, Play, CheckCircle, RotateCcw, Dumbbell, Activity, Info, X } = lucideReact;
 
         const FitBackApp = () => {
+            // Load saved data from localStorage or use defaults
+            const loadSavedData = (key, defaultValue) => {
+                try {
+                    const saved = localStorage.getItem(key);
+                    return saved ? JSON.parse(saved) : defaultValue;
+                } catch {
+                    return defaultValue;
+                }
+            };
+
             const [activeTab, setActiveTab] = useState('dashboard');
             const [currentWorkout, setCurrentWorkout] = useState(null);
             const [workoutPhase, setWorkoutPhase] = useState('warmup');
@@ -37,16 +47,68 @@
             const [completedWarmup, setCompletedWarmup] = useState([]);
             const [completedCooldown, setCompletedCooldown] = useState([]);
             const [showExerciseModal, setShowExerciseModal] = useState(null);
-            const [workoutHistory, setWorkoutHistory] = useState([
-                { date: '2025-06-28', type: 'Força Superior', exercises: 8, duration: 52 },
-                { date: '2025-06-26', type: 'Potência Inferior', exercises: 6, duration: 45 },
-                { date: '2025-06-24', type: 'Prep. Padel', exercises: 5, duration: 35 }
-            ]);
-            const [progressData, setProgressData] = useState({
-                deadlift: [{ date: '2025-06-20', weight: 80 }, { date: '2025-06-27', weight: 85 }],
-                squat: [{ date: '2025-06-20', weight: 70 }, { date: '2025-06-27', weight: 75 }],
-                benchPress: [{ date: '2025-06-20', weight: 65 }, { date: '2025-06-27', weight: 67.5 }]
-            });
+            const [workoutHistory, setWorkoutHistory] = useState(() => 
+                loadSavedData('fitback-history', [
+                    { date: '2025-06-28', type: 'Força Superior', exercises: 8, duration: 52 },
+                    { date: '2025-06-26', type: 'Potência Inferior', exercises: 6, duration: 45 },
+                    { date: '2025-06-24', type: 'Prep. Padel', exercises: 5, duration: 35 }
+                ])
+            );
+            const [progressData, setProgressData] = useState(() =>
+                loadSavedData('fitback-progress', {
+                    deadlift: [{ date: '2025-06-20', weight: 80 }, { date: '2025-06-27', weight: 85 }],
+                    squat: [{ date: '2025-06-20', weight: 70 }, { date: '2025-06-27', weight: 75 }],
+                    benchPress: [{ date: '2025-06-20', weight: 65 }, { date: '2025-06-27', weight: 67.5 }]
+                })
+            );
+
+            // Backup functions
+            const exportData = () => {
+                const data = {
+                    workoutHistory,
+                    progressData,
+                    exportDate: new Date().toISOString()
+                };
+                const dataStr = JSON.stringify(data, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `fitback-backup-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const importData = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            if (data.workoutHistory && data.progressData) {
+                                setWorkoutHistory(data.workoutHistory);
+                                setProgressData(data.progressData);
+                                alert('✅ Dados restaurados com sucesso!');
+                            } else {
+                                alert('❌ Ficheiro de backup inválido.');
+                            }
+                        } catch (error) {
+                            alert('❌ Erro ao ler ficheiro de backup.');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            // Save data to localStorage whenever it changes
+            useEffect(() => {
+                localStorage.setItem('fitback-history', JSON.stringify(workoutHistory));
+            }, [workoutHistory]);
+
+            useEffect(() => {
+                localStorage.setItem('fitback-progress', JSON.stringify(progressData));
+            }, [progressData]);
 
             const exerciseInstructions = {
                 // Aquecimento
@@ -279,7 +341,7 @@
                         { name: "Peso morto romeno", sets: 3, reps: "10-12", weight: "60kg", rest: "2min", notes: "Foco isquiotibiais/glúteos" },
                         { name: "Afundos laterais", sets: 3, reps: "10 cada lado", weight: "15kg HTs", rest: "60s", notes: "Padrão movimento padel" },
                         { name: "Step-ups na caixa", sets: 3, reps: "8 cada perna", weight: "15kg HTs", rest: "90s", notes: "Potência explosiva" },
-                        { name: "Elevações de gémeus", sets: 3, reps: "15-20", weight: "30kg HTs", rest: "60s", notes: "Estabilidade tornozelo" }
+                        { name: "Elevações de gémeos", sets: 3, reps: "15-20", weight: "30kg HTs", rest: "60s", notes: "Estabilidade tornozelo" }
                     ],
                     cooldown: [
                         { name: "Alongamento isquiotibiais", duration: "3min", notes: "Alonga músculos mais trabalhados" },
@@ -360,19 +422,56 @@
 
             const finishWorkout = () => {
                 if (currentWorkout) {
+                    const today = new Date().toISOString().split('T')[0];
                     const newEntry = {
-                        date: new Date().toISOString().split('T')[0],
+                        date: today,
                         type: currentWorkout.name,
                         exercises: currentWorkout.exercises.length,
                         duration: Math.floor(Math.random() * 20) + 35
                     };
+                    
+                    // Update workout history
                     setWorkoutHistory([newEntry, ...workoutHistory]);
+                    
+                    // Update progress data for strength exercises
+                    const strengthExercises = ['Peso morto', 'Agachamento traseiro', 'Press militar'];
+                    const newProgressData = { ...progressData };
+                    
+                    currentWorkout.exercises.forEach(exercise => {
+                        if (strengthExercises.includes(exercise.name)) {
+                            let key;
+                            if (exercise.name === 'Peso morto') key = 'deadlift';
+                            else if (exercise.name === 'Agachamento traseiro') key = 'squat';
+                            else if (exercise.name === 'Press militar') key = 'benchPress';
+                            
+                            if (key && newProgressData[key]) {
+                                const currentWeight = parseInt(exercise.weight);
+                                const lastEntry = newProgressData[key][newProgressData[key].length - 1];
+                                
+                                // Add new entry if it's been more than 3 days or weight increased
+                                const daysSinceLastEntry = (new Date(today) - new Date(lastEntry.date)) / (1000 * 60 * 60 * 24);
+                                if (daysSinceLastEntry >= 3 || currentWeight > lastEntry.weight) {
+                                    newProgressData[key].push({
+                                        date: today,
+                                        weight: currentWeight
+                                    });
+                                }
+                            }
+                        }
+                    });
+                    
+                    setProgressData(newProgressData);
+                    
+                    // Reset workout state
                     setCurrentWorkout(null);
                     setWorkoutPhase('warmup');
                     setCompletedSets([]);
                     setCompletedWarmup([]);
                     setCompletedCooldown([]);
                     setActiveTab('dashboard');
+                    
+                    // Show completion message
+                    alert('🎉 Treino concluído e progresso guardado!');
                 }
             };
 
@@ -492,6 +591,18 @@
                                                 </div>
                                             </div>
                                         ))}
+                                    </div>
+                                </div>
+
+                                {/* Data Status */}
+                                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                    <h3 className="font-semibold text-green-800 mb-2">💾 Dados Guardados</h3>
+                                    <p className="text-green-700 text-sm mb-2">
+                                        O teu progresso está a ser guardado automaticamente no dispositivo.
+                                    </p>
+                                    <div className="text-xs text-green-600">
+                                        • {workoutHistory.length} treinos registados
+                                        • Último backup: {new Date().toLocaleDateString('pt-PT')}
                                     </div>
                                 </div>
 
@@ -812,6 +923,30 @@
                                             <span className="text-sm">Programação Adequada à Idade</span>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <h3 className="font-semibold mb-3">Backup dos Dados</h3>
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={exportData}
+                                            className="w-full bg-blue-100 text-blue-700 py-2 rounded-lg text-sm hover:bg-blue-200 transition-colors"
+                                        >
+                                            📥 Exportar Dados (Backup)
+                                        </button>
+                                        <label className="block">
+                                            <span className="text-sm text-gray-600">Restaurar de backup:</span>
+                                            <input
+                                                type="file"
+                                                accept=".json"
+                                                onChange={importData}
+                                                className="w-full mt-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-green-100 file:text-green-700 hover:file:bg-green-200"
+                                            />
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Recomenda-se fazer backup regularmente para não perder progresso.
+                                    </p>
                                 </div>
 
                                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
